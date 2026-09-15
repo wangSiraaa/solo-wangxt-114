@@ -1,0 +1,11 @@
+# 计算引擎与后端
+numpy>=2.0
+Django>=5.0
+djangorestframework>=3.15
+django-cors-headers>=4.4
+pytest>=8.0
+
+# 生产（PostgreSQL/PostGIS）额外需要：
+#   psycopg[binary]>=3.1        # Django 数据库驱动
+#   系统级 GDAL/GEOS（GeoDjango 依赖）
+# 前端依赖见 frontend/package.json（react + vite）

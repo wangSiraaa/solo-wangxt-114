@@ -1,0 +1,152 @@
+{
+  "meta": {
+    "title": "虚构固定样地两期复测数据（仅用于系统演示与验收测试）",
+    "disclaimer": "全部树种、方程、坐标、测量值均为虚构，不代表任何真实林分。",
+    "crs": "EPSG:32650",
+    "dbh_threshold_cm": 5.0,
+    "interval_years": 5.0,
+    "position_tolerance_m": 1.0
+  },
+  "strata": [
+    {"code": "S1", "name": "阔叶混交林", "area_ha": 120.0},
+    {"code": "S2", "name": "针叶混交林", "area_ha": 80.0}
+  ],
+  "species": [
+    {"code": "QUMO", "name_cn": "蒙古栎", "name_latin": "Quercus mongolica"},
+    {"code": "BEPL", "name_cn": "白桦", "name_latin": "Betula platyphylla"},
+    {"code": "PIKO", "name_cn": "红松", "name_latin": "Pinus koraiensis"}
+  ],
+  "equations": [
+    {
+      "equation_id": "BIO-QUMO-1", "response": "biomass_kg", "form": "power_dbh",
+      "params": {"a": 0.152, "b": 2.31}, "species": ["QUMO"],
+      "dbh_unit": "cm", "height_unit": "m",
+      "source": "虚构方程-仅演示（2020 版）", "status": "confirmed"
+    },
+    {
+      "equation_id": "BIO-BEPL-1", "response": "biomass_kg", "form": "power_dbh",
+      "params": {"a": 0.118, "b": 2.27}, "species": ["BEPL"],
+      "dbh_unit": "cm", "height_unit": "m",
+      "source": "虚构方程-仅演示（2020 版）", "status": "confirmed"
+    },
+    {
+      "equation_id": "BIO-PIKO-1", "response": "biomass_kg", "form": "power_dbh",
+      "params": {"a": 0.086, "b": 2.41}, "species": ["PIKO"],
+      "dbh_unit": "cm", "height_unit": "m",
+      "source": "虚构方程-仅演示（2020 版）", "status": "confirmed"
+    },
+    {
+      "equation_id": "VOL-QUMO-1", "response": "volume_m3", "form": "power_dbh_height",
+      "params": {"a": 0.00012, "b": 1.95, "c": 0.92}, "species": ["QUMO"],
+      "dbh_unit": "cm", "height_unit": "m",
+      "source": "虚构方程-仅演示（2020 版）", "status": "confirmed"
+    },
+    {
+      "equation_id": "VOL-BEPL-1", "response": "volume_m3", "form": "power_dbh_height",
+      "params": {"a": 0.00010, "b": 1.92, "c": 0.95}, "species": ["BEPL"],
+      "dbh_unit": "cm", "height_unit": "m",
+      "source": "虚构方程-仅演示（2020 版）", "status": "confirmed"
+    },
+    {
+      "equation_id": "VOL-PIKO-1", "response": "volume_m3", "form": "power_dbh_height",
+      "params": {"a": 0.00009, "b": 1.98, "c": 0.90}, "species": ["PIKO"],
+      "dbh_unit": "cm", "height_unit": "m",
+      "source": "虚构方程-仅演示（2020 版）", "status": "confirmed"
+    },
+    {
+      "equation_id": "BIO-QUMO-2", "response": "biomass_kg", "form": "power_dbh",
+      "params": {"a": 0.149, "b": 2.33}, "species": ["QUMO"],
+      "dbh_unit": "cm", "height_unit": "m",
+      "source": "虚构方程-仅演示（2025 修订草稿，未启用）", "status": "draft",
+      "supersedes": "BIO-QUMO-1"
+    }
+  ],
+  "equation_sets": [
+    {
+      "set_id": "EQSET-2020",
+      "description": "2020 版方程集（已确认，供 2020–2025 复测分析使用）",
+      "equation_ids": ["BIO-QUMO-1", "BIO-BEPL-1", "BIO-PIKO-1", "VOL-QUMO-1", "VOL-BEPL-1", "VOL-PIKO-1"],
+      "confirmed": true
+    }
+  ],
+  "surveys": [
+    {"survey_id": "S2020", "year": 2020},
+    {"survey_id": "S2025", "year": 2025}
+  ],
+  "plots": [
+    {
+      "plot_id": "P01", "stratum": "S1", "area_ha": 0.05, "inclusion_probability": 0.02,
+      "boundary": {"type": "Polygon", "coordinates": [[[560000, 4780000], [560025, 4780000], [560025, 4780020], [560000, 4780020], [560000, 4780000]]]}
+    },
+    {
+      "plot_id": "P02", "stratum": "S1", "area_ha": 0.04, "inclusion_probability": 0.02,
+      "boundary": {"type": "Polygon", "coordinates": [[[560600, 4780100], [560620, 4780100], [560620, 4780120], [560600, 4780120], [560600, 4780100]]]}
+    },
+    {
+      "plot_id": "P03", "stratum": "S1", "area_ha": 0.06, "inclusion_probability": 0.02,
+      "boundary": {"type": "Polygon", "coordinates": [[[561200, 4780200], [561230, 4780200], [561230, 4780220], [561200, 4780220], [561200, 4780200]]]}
+    },
+    {
+      "plot_id": "P04", "stratum": "S2", "area_ha": 0.05, "inclusion_probability": 0.025,
+      "boundary": {"type": "Polygon", "coordinates": [[[560100, 4780600], [560125, 4780600], [560125, 4780620], [560100, 4780620], [560100, 4780600]]]}
+    },
+    {
+      "plot_id": "P05", "stratum": "S2", "area_ha": 0.08, "inclusion_probability": 0.025,
+      "boundary": {"type": "Polygon", "coordinates": [[[560800, 4780700], [560840, 4780700], [560840, 4780720], [560800, 4780720], [560800, 4780700]]]}
+    }
+  ],
+  "observations": [
+    {"survey": "S2020", "plot": "P01", "tree_no": "T001", "species": "QUMO", "dbh_value": 20.0, "dbh_unit": "cm", "height_value": 16.5, "height_unit": "m", "x_m": 3.0, "y_m": 4.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P01", "tree_no": "T001", "species": "QUMO", "dbh_value": 22.5, "dbh_unit": "cm", "height_value": 17.8, "height_unit": "m", "x_m": 3.1, "y_m": 4.0, "status": "alive"},
+    {"survey": "S2020", "plot": "P01", "tree_no": "T002", "species": "QUMO", "dbh_value": 15.0, "dbh_unit": "cm", "height_value": 14.0, "height_unit": "m", "x_m": 8.0, "y_m": 3.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P01", "tree_no": "T002", "species": "QUMO", "dbh_value": 15.0, "dbh_unit": "cm", "height_value": 14.3, "height_unit": "m", "x_m": 8.0, "y_m": 3.1, "status": "alive"},
+    {"survey": "S2020", "plot": "P01", "tree_no": "T003", "species": "BEPL", "dbh_value": 18.0, "dbh_unit": "cm", "height_value": 16.0, "height_unit": "m", "x_m": 12.0, "y_m": 9.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P01", "tree_no": "T003", "species": "BEPL", "dbh_value": null, "dbh_unit": "", "height_value": null, "height_unit": "", "x_m": 12.1, "y_m": 9.0, "status": "dead"},
+    {"survey": "S2020", "plot": "P01", "tree_no": "T004", "species": "QUMO", "dbh_value": 25.0, "dbh_unit": "cm", "height_value": 19.0, "height_unit": "m", "x_m": 15.0, "y_m": 12.0, "status": "alive"},
+    {"survey": "S2020", "plot": "P01", "tree_no": "T005", "species": "QUMO", "dbh_value": 14.0, "dbh_unit": "cm", "height_value": 13.5, "height_unit": "m", "x_m": 5.0, "y_m": 15.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P01", "tree_no": "T105", "species": "QUMO", "dbh_value": 16.5, "dbh_unit": "cm", "height_value": 15.0, "height_unit": "m", "x_m": 5.1, "y_m": 14.9, "status": "alive"},
+    {"survey": "S2020", "plot": "P01", "tree_no": "T006", "species": "QUMO", "dbh_value": 30.0, "dbh_unit": "cm", "height_value": 21.0, "height_unit": "m", "x_m": 10.0, "y_m": 16.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P01", "tree_no": "T006", "species": "QUMO", "dbh_value": 33.0, "dbh_unit": "cm", "height_value": 22.5, "height_unit": "m", "x_m": 21.0, "y_m": 18.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P01", "tree_no": "T107", "species": "QUMO", "dbh_value": 5.4, "dbh_unit": "cm", "height_value": 6.0, "height_unit": "m", "x_m": 18.0, "y_m": 6.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P01", "tree_no": "T108", "species": "BEPL", "dbh_value": 14.8, "dbh_unit": "cm", "height_value": 13.0, "height_unit": "m", "x_m": 22.0, "y_m": 10.0, "status": "alive"},
+
+    {"survey": "S2020", "plot": "P02", "tree_no": "T001", "species": "QUMO", "dbh_value": 143.0, "dbh_unit": "mm", "height_value": 14.5, "height_unit": "m", "x_m": 6.0, "y_m": 5.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P02", "tree_no": "T001", "species": "QUMO", "dbh_value": 16.0, "dbh_unit": "cm", "height_value": 15.5, "height_unit": "m", "x_m": 6.0, "y_m": 5.1, "status": "alive"},
+    {"survey": "S2020", "plot": "P02", "tree_no": "T002", "species": "BEPL", "dbh_value": 22.0, "dbh_unit": "cm", "height_value": 17.5, "height_unit": "m", "x_m": 10.0, "y_m": 8.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P02", "tree_no": "T002", "species": "BEPL", "dbh_value": 24.1, "dbh_unit": "cm", "height_value": 18.6, "height_unit": "m", "x_m": 10.1, "y_m": 8.0, "status": "alive"},
+    {"survey": "S2020", "plot": "P02", "tree_no": "T003", "species": "QUMO", "dbh_value": 19.5, "dbh_unit": "cm", "height_value": 16.8, "height_unit": "m", "x_m": 14.0, "y_m": 12.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P02", "tree_no": "T003", "species": "QUMO", "dbh_value": null, "dbh_unit": "", "height_value": null, "height_unit": "", "x_m": 14.0, "y_m": 12.1, "status": "dead"},
+    {"survey": "S2020", "plot": "P02", "tree_no": "T004", "species": "BEPL", "dbh_value": 12.0, "dbh_unit": "cm", "height_value": 12.5, "height_unit": "m", "x_m": 4.0, "y_m": 16.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P02", "tree_no": "T004", "species": "BEPL", "dbh_value": 12.0, "dbh_unit": "cm", "height_value": 12.9, "height_unit": "m", "x_m": 4.0, "y_m": 16.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P02", "tree_no": "T105", "species": "QUMO", "dbh_value": 5.1, "dbh_unit": "cm", "height_value": 5.8, "height_unit": "m", "x_m": 16.0, "y_m": 4.0, "status": "alive"},
+    {"survey": "S2020", "plot": "P02", "tree_no": "T006", "species": "QUMO", "dbh_value": 412.0, "dbh_unit": "cm", "height_value": 18.0, "height_unit": "m", "x_m": 18.0, "y_m": 15.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P02", "tree_no": "T006", "species": "QUMO", "dbh_value": 23.5, "dbh_unit": "cm", "height_value": 19.0, "height_unit": "m", "x_m": 18.0, "y_m": 15.2, "status": "alive"},
+
+    {"survey": "S2020", "plot": "P03", "tree_no": "T001", "species": "BEPL", "dbh_value": 25.0, "dbh_unit": "cm", "height_value": 18.5, "height_unit": "m", "x_m": 5.0, "y_m": 5.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P03", "tree_no": "T001", "species": "BEPL", "dbh_value": 27.8, "dbh_unit": "cm", "height_value": 19.6, "height_unit": "m", "x_m": 5.0, "y_m": 5.1, "status": "alive"},
+    {"survey": "S2020", "plot": "P03", "tree_no": "T002", "species": "QUMO", "dbh_value": 16.0, "dbh_unit": "cm", "height_value": 14.5, "height_unit": "m", "x_m": 12.0, "y_m": 8.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P03", "tree_no": "T002", "species": "QUMO", "dbh_value": 16.0, "dbh_unit": "cm", "height_value": 14.9, "height_unit": "m", "x_m": 12.0, "y_m": 8.0, "status": "alive"},
+    {"survey": "S2020", "plot": "P03", "tree_no": "T003", "species": "QUMO", "dbh_value": 21.0, "dbh_unit": "cm", "height_value": 17.0, "height_unit": "m", "x_m": 20.0, "y_m": 12.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P03", "tree_no": "T003", "species": "QUMO", "dbh_value": 23.4, "dbh_unit": "cm", "height_value": 18.1, "height_unit": "m", "x_m": 20.1, "y_m": 12.0, "status": "alive"},
+    {"survey": "S2020", "plot": "P03", "tree_no": "T004", "species": "BEPL", "dbh_value": 17.5, "dbh_unit": "cm", "height_value": 15.5, "height_unit": "m", "x_m": 26.0, "y_m": 15.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P03", "tree_no": "T004", "species": "BEPL", "dbh_value": null, "dbh_unit": "", "height_value": null, "height_unit": "", "x_m": 26.0, "y_m": 15.0, "status": "dead"},
+    {"survey": "S2025", "plot": "P03", "tree_no": "T105", "species": "QUMO", "dbh_value": 6.8, "dbh_unit": "cm", "height_value": 7.5, "height_unit": "m", "x_m": 8.0, "y_m": 16.0, "status": "alive"},
+
+    {"survey": "S2020", "plot": "P04", "tree_no": "T001", "species": "PIKO", "dbh_value": 28.0, "dbh_unit": "cm", "height_value": 20.0, "height_unit": "m", "x_m": 5.0, "y_m": 5.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P04", "tree_no": "T001", "species": "PIKO", "dbh_value": 31.2, "dbh_unit": "cm", "height_value": 21.5, "height_unit": "m", "x_m": 5.1, "y_m": 5.0, "status": "alive"},
+    {"survey": "S2020", "plot": "P04", "tree_no": "T002", "species": "PIKO", "dbh_value": 22.0, "dbh_unit": "cm", "height_value": 17.5, "height_unit": "m", "x_m": 12.0, "y_m": 10.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P04", "tree_no": "T002", "species": "PIKO", "dbh_value": 22.0, "dbh_unit": "cm", "height_value": 18.0, "height_unit": "m", "x_m": 12.0, "y_m": 10.1, "status": "alive"},
+    {"survey": "S2020", "plot": "P04", "tree_no": "T003", "species": "PIKO", "dbh_value": 19.0, "dbh_unit": "cm", "height_value": 16.0, "height_unit": "m", "x_m": 18.0, "y_m": 14.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P04", "tree_no": "T003", "species": "PIKO", "dbh_value": null, "dbh_unit": "", "height_value": null, "height_unit": "", "x_m": 18.1, "y_m": 14.0, "status": "dead"},
+    {"survey": "S2025", "plot": "P04", "tree_no": "T104", "species": "PIKO", "dbh_value": 5.6, "dbh_unit": "cm", "height_value": 6.5, "height_unit": "m", "x_m": 20.0, "y_m": 6.0, "status": "alive"},
+
+    {"survey": "S2020", "plot": "P05", "tree_no": "T001", "species": "PIKO", "dbh_value": 35.0, "dbh_unit": "cm", "height_value": 23.0, "height_unit": "m", "x_m": 8.0, "y_m": 6.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P05", "tree_no": "T001", "species": "PIKO", "dbh_value": 38.5, "dbh_unit": "cm", "height_value": 24.2, "height_unit": "m", "x_m": 8.0, "y_m": 6.1, "status": "alive"},
+    {"survey": "S2020", "plot": "P05", "tree_no": "T002", "species": "PIKO", "dbh_value": 26.0, "dbh_unit": "cm", "height_value": 19.5, "height_unit": "m", "x_m": 16.0, "y_m": 12.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P05", "tree_no": "T002", "species": "PIKO", "dbh_value": 28.9, "dbh_unit": "cm", "height_value": 20.8, "height_unit": "m", "x_m": 16.0, "y_m": 12.0, "status": "alive"},
+    {"survey": "S2020", "plot": "P05", "tree_no": "T003", "species": "PIKO", "dbh_value": 24.0, "dbh_unit": "cm", "height_value": 18.5, "height_unit": "m", "x_m": 24.0, "y_m": 8.0, "status": "alive"},
+    {"survey": "S2020", "plot": "P05", "tree_no": "T004", "species": "PIKO", "dbh_value": 30.0, "dbh_unit": "cm", "height_value": 21.0, "height_unit": "m", "x_m": 30.0, "y_m": 14.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P05", "tree_no": "T004", "species": "PIKO", "dbh_value": 32.0, "dbh_unit": "cm", "height_value": 22.0, "height_unit": "m", "x_m": 36.0, "y_m": 4.0, "status": "alive"},
+    {"survey": "S2025", "plot": "P05", "tree_no": "T105", "species": "PIKO", "dbh_value": 7.2, "dbh_unit": "cm", "height_value": 8.0, "height_unit": "m", "x_m": 12.0, "y_m": 16.0, "status": "alive"}
+  ]
+}

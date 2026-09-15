@@ -1,0 +1,22 @@
+version: "3.9"
+
+# 生产形态：PostgreSQL/PostGIS 保存树木编号、测量高度与样地边界。
+# 启动：docker compose up -d db
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: forestry
+      POSTGRES_USER: forestry
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    ports:
+      - "5432:5432"
+    volumes:
+      - forestry_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forestry"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  forestry_pgdata:

@@ -1,0 +1,19 @@
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*credentials*
+*token*
+
+# Local runtime data and caches
+*.sqlite3
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Frontend dependencies and local build cache
+**/node_modules/
+frontend/.vite/
