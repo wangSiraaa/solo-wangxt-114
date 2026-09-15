@@ -11,6 +11,18 @@
    不计入任何分量，只在来源说明中列出。
 6. 仅复测有的存活个体：胸径 ≥ 起测径且不超过本期进界可达上限 → ingrowth；
    超过上限 → possible_missed（疑似初测漏测），挂起待核实。
+
+核实结论修订（RevisionDirectives）
+----------------------------------
+修订批次应用时，核实结论以"指令"形式在常规匹配**之前**执行，
+全部带 verification_confirmed 标记并可追溯到结论记录：
+
+- forced_pairs          同株改号：强制认定 (t1, t2) 为同株（忽略位置矛盾）；
+- forced_dead           确认死亡：t1 个体按死亡计入；
+- forced_exclusions_*   保留排除：指定记录显式排除；
+- confirmed_missed_t2   确认漏测：复测新进个体确认为初测漏测，保持排除并更名。
+
+指令引用不存在或已被占用的记录时抛 DataError —— 批次应用整体失败，可修正后重试。
 """
 from __future__ import annotations
 
@@ -21,7 +33,7 @@ from typing import Optional, Tuple
 # ---- 匹配类别常量 -----------------------------------------------------------
 SURVIVOR = "survivor"                # 两期均实测，有生长
 SURVIVOR_ZERO = "survivor_zero"      # 两期均实测，真实零生长
-DEAD = "dead"                        # 死亡（复测明确记录）
+DEAD = "dead"                        # 死亡（复测明确记录或核实结论确认）
 MISSING = "missing"                  # 缺测（复测无记录）
 INGROWTH = "ingrowth"                # 进界
 RENUMBERED = "renumbered"            # 复测改号（位置吻合，判定同株）
@@ -29,6 +41,8 @@ CONFLICT = "conflict"                # 编号相同但位置矛盾 → 待核实
 POSSIBLE_MISSED = "possible_missed"  # 疑似初测漏测 → 待核实
 SUBTHRESHOLD = "subthreshold"        # 未达起测径，不参与分量
 DEAD_WITHOUT_T1 = "dead_without_t1"  # 异常：死亡记录无初测对应 → 待核实
+CONFIRMED_MISSED = "confirmed_missed"            # 核实确认：初测漏测（保持排除）
+EXCLUDED_BY_VERIFICATION = "excluded_by_verification"  # 核实结论：保留排除
 
 #: 参与"保留木生长"的类别
 GROWTH_CATEGORIES = (SURVIVOR, SURVIVOR_ZERO, RENUMBERED)
@@ -49,11 +63,13 @@ CATEGORY_LABELS = {
     POSSIBLE_MISSED: "疑似漏测待核实",
     SUBTHRESHOLD: "未达起测径",
     DEAD_WITHOUT_T1: "死亡记录异常",
+    CONFIRMED_MISSED: "确认漏测（保持排除）",
+    EXCLUDED_BY_VERIFICATION: "核实保留排除",
 }
 
 
 class DataError(ValueError):
-    """输入数据本身不合法（如同期同样地编号重复、存活个体缺胸径）。"""
+    """输入数据或核实结论指令不合法（如编号重复、引用不存在的记录）。"""
 
 
 @dataclass(frozen=True)
@@ -69,6 +85,20 @@ class TreeRecord:
     y_m: float
     status: str = "alive"   # alive | dead
     survey_id: str = ""
+
+
+@dataclass(frozen=True)
+class RevisionDirectives:
+    """核实结论转换来的匹配指令（按样地应用，先于常规匹配）。
+
+    各元组元素末位为该结论的说明文字（追溯用）。
+    """
+
+    forced_pairs: Tuple[Tuple[str, str, str], ...] = ()        # (t1_no, t2_no, note)
+    forced_dead: Tuple[Tuple[str, str], ...] = ()              # (t1_no, note)
+    forced_exclusions_t1: Tuple[Tuple[str, str], ...] = ()     # (tree_no, note)
+    forced_exclusions_t2: Tuple[Tuple[str, str], ...] = ()
+    confirmed_missed_t2: Tuple[Tuple[str, str], ...] = ()
 
 
 @dataclass
@@ -137,8 +167,13 @@ def match_plot_records(
     position_tolerance_m: float = 1.0,
     dbh_threshold_cm: float = 5.0,
     max_annual_dbh_growth_cm: float = 1.2,
+    directives: Optional[RevisionDirectives] = None,
 ):
-    """对单块样地的两期记录做匹配，返回 MatchOutcome 列表。"""
+    """对单块样地的两期记录做匹配，返回 MatchOutcome 列表。
+
+    directives 为核实结论指令（修订批次应用时传入），先于常规匹配执行。
+    """
+    directives = directives or RevisionDirectives()
     _assert_unique(t1_records, "初测", plot_id)
     _assert_unique(t2_records, "复测", plot_id)
     for r in t1_records:
@@ -147,13 +182,75 @@ def match_plot_records(
         _require_dbh(r, "复测")
 
     outcomes = []
+    t1_by_no = {r.tree_no: r for r in t1_records}
     t2_by_no = {r.tree_no: r for r in t2_records}
-    consumed_t2 = set()
+    consumed_t1: set = set()
+    consumed_t2: set = set()
 
-    # 第一遍：编号相同的记录
+    def _take(index, consumed, tree_no, purpose, label):
+        if tree_no in consumed:
+            raise DataError(
+                f"核实结论冲突：{label}记录 {plot_id}/{tree_no} 被多条结论重复引用"
+            )
+        record = index.get(tree_no)
+        if record is None:
+            raise DataError(
+                f"核实结论引用了不存在的{label}记录 {plot_id}/{tree_no}（{purpose}）"
+            )
+        consumed.add(tree_no)
+        return record
+
+    # ---- 第 0 遍：核实结论指令 ---------------------------------------------
+    for t1_no, t2_no, note in directives.forced_pairs:
+        r1 = _take(t1_by_no, consumed_t1, t1_no, "同株改号", "初测")
+        r2 = _take(t2_by_no, consumed_t2, t2_no, "同株改号", "复测")
+        if r1.status != "alive" or r2.status != "alive":
+            raise DataError(
+                f"同株改号结论要求两期均为存活记录，但 {plot_id}/{t1_no}→{t2_no} 中含死亡记录"
+            )
+        if t1_no == t2_no:
+            delta = r2.dbh_cm - r1.dbh_cm
+            cat = SURVIVOR_ZERO if abs(delta) <= ZERO_GROWTH_TOLERANCE_CM else SURVIVOR
+        else:
+            cat = RENUMBERED
+        outcomes.append(MatchOutcome(
+            plot_id, cat, r1, r2, note=note, flags=("verification_confirmed",),
+        ))
+
+    for t1_no, note in directives.forced_dead:
+        r1 = _take(t1_by_no, consumed_t1, t1_no, "确认死亡", "初测")
+        outcomes.append(MatchOutcome(
+            plot_id, DEAD, r1, None, note=note, flags=("verification_confirmed",),
+        ))
+
+    for no, note in directives.forced_exclusions_t1:
+        r1 = _take(t1_by_no, consumed_t1, no, "保留排除", "初测")
+        outcomes.append(MatchOutcome(
+            plot_id, EXCLUDED_BY_VERIFICATION, r1, None,
+            note=note, flags=("verification_confirmed",),
+        ))
+    for no, note in directives.forced_exclusions_t2:
+        r2 = _take(t2_by_no, consumed_t2, no, "保留排除", "复测")
+        outcomes.append(MatchOutcome(
+            plot_id, EXCLUDED_BY_VERIFICATION, None, r2,
+            note=note, flags=("verification_confirmed",),
+        ))
+
+    for no, note in directives.confirmed_missed_t2:
+        r2 = _take(t2_by_no, consumed_t2, no, "确认漏测", "复测")
+        outcomes.append(MatchOutcome(
+            plot_id, CONFIRMED_MISSED, None, r2,
+            note=note, flags=("verification_confirmed",),
+        ))
+
+    remaining_t1 = [r for r in t1_records if r.tree_no not in consumed_t1]
+    remaining_t2 = [r for r in t2_records if r.tree_no not in consumed_t2]
+
+    # ---- 第一遍：编号相同的记录 ---------------------------------------------
+    t2_remaining_by_no = {r.tree_no: r for r in remaining_t2}
     t1_unmatched = []
-    for r1 in t1_records:
-        r2 = t2_by_no.get(r1.tree_no)
+    for r1 in remaining_t1:
+        r2 = t2_remaining_by_no.get(r1.tree_no)
         if r2 is None:
             t1_unmatched.append(r1)
             continue
@@ -179,10 +276,10 @@ def match_plot_records(
                 flags=("position_contradiction",),
             ))
 
-    # 第二遍：初测编号在复测中不存在 → 尝试按位置识别"复测改号"
+    # ---- 第二遍：初测编号在复测中不存在 → 尝试按位置识别"复测改号" ----------
     for r1 in t1_unmatched:
         best, best_d = None, None
-        for r2 in t2_records:
+        for r2 in remaining_t2:
             if r2.tree_no in consumed_t2 or r2.status != "alive":
                 continue
             if r2.species != r1.species:
@@ -210,9 +307,9 @@ def match_plot_records(
                 flags=("not_remeasured",),
             ))
 
-    # 第三遍：复测中剩余的记录（初测无对应）
+    # ---- 第三遍：复测中剩余的记录（初测无对应） ------------------------------
     max_plausible_ingrowth_dbh = dbh_threshold_cm + max_annual_dbh_growth_cm * interval_years
-    for r2 in t2_records:
+    for r2 in remaining_t2:
         if r2.tree_no in consumed_t2:
             continue
         consumed_t2.add(r2.tree_no)

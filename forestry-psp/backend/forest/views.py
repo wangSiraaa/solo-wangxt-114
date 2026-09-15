@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
-from rest_framework import viewsets
+from rest_framework import mixins, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,10 +11,19 @@ from core.matching import DataError
 from core.units import UnitError
 
 from . import services
-from .models import EquationSet, Plot, SurveyVersion, VerificationTicket
+from .models import (
+    EquationSet,
+    Plot,
+    RevisionBatch,
+    RevisionConclusion,
+    SurveyVersion,
+    VerificationTicket,
+)
 from .serializers import (
     EquationSetSerializer,
     PlotSerializer,
+    RevisionBatchSerializer,
+    RevisionConclusionSerializer,
     SurveyVersionSerializer,
     VerificationTicketSerializer,
 )
@@ -95,12 +104,29 @@ class SurveyVersionViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({"detail": exc.messages}, status=409)
         return Response(self.get_serializer(version).data)
 
+    @action(detail=False, methods=["get"])
+    def compare(self, request):
+        """按版本比较估计差异：?base=<id>&revision=<id>。"""
+        base = get_object_or_404(SurveyVersion, pk=request.query_params.get("base"))
+        revision = get_object_or_404(
+            SurveyVersion, pk=request.query_params.get("revision")
+        )
+        try:
+            payload = services.compare_versions(base, revision)
+        except _DOMAIN_ERRORS as exc:
+            return Response({"detail": str(exc)}, status=409)
+        return Response(payload)
+
 
 class VerificationTicketViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = VerificationTicketSerializer
 
     def get_queryset(self):
-        return VerificationTicket.objects.select_related("plot").order_by("-created_at")
+        return (
+            VerificationTicket.objects.select_related("plot")
+            .prefetch_related("conclusions__batch")
+            .order_by("-created_at")
+        )
 
     @action(detail=True, methods=["post"])
     def resolve(self, request, pk=None):
@@ -108,6 +134,83 @@ class VerificationTicketViewSet(viewsets.ReadOnlyModelViewSet):
         ticket.status = "resolved"
         ticket.save(update_fields=["status"])
         return Response(self.get_serializer(ticket).data)
+
+
+class RevisionBatchViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
+    """核实结论修订批次：创建（幂等）、查看、应用、失败重试。"""
+
+    serializer_class = RevisionBatchSerializer
+
+    def get_queryset(self):
+        return (
+            RevisionBatch.objects.select_related("base_version", "result_version")
+            .prefetch_related("conclusions__ticket")
+            .order_by("-created_at")
+        )
+
+    def create(self, request):
+        try:
+            batch, created = services.create_batch(request.data)
+        except services.ConclusionConflict as exc:
+            return Response({"detail": str(exc)}, status=409)
+        except DjangoValidationError as exc:
+            return Response(
+                {"detail": exc.messages if hasattr(exc, "messages") else str(exc)},
+                status=400,
+            )
+        return Response(
+            self.get_serializer(batch).data, status=201 if created else 200
+        )
+
+    @action(detail=True, methods=["post"])
+    def apply(self, request, pk=None):
+        try:
+            batch = services.apply_batch(int(pk))
+        except services.BatchApplyError as exc:
+            return Response({"detail": str(exc), "status": "failed"}, status=422)
+        return Response(self.get_serializer(batch).data)
+
+    @action(detail=True, methods=["post"])
+    def retry(self, request, pk=None):
+        batch = self.get_object()
+        if batch.status != "failed":
+            return Response(
+                {"detail": f"仅失败状态的批次可重试（当前 {batch.status}）"}, status=409
+            )
+        try:
+            batch = services.apply_batch(int(pk))
+        except services.BatchApplyError as exc:
+            return Response({"detail": str(exc), "status": "failed"}, status=422)
+        return Response(self.get_serializer(batch).data)
+
+
+class RevisionConclusionViewSet(
+    mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet
+):
+    """单条结论：查看与修正（仅草稿/失败批次可修正 after_value）。"""
+
+    serializer_class = RevisionConclusionSerializer
+    queryset = RevisionConclusion.objects.select_related("batch").all()
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def partial_update(self, request, *args, **kwargs):
+        conclusion = self.get_object()
+        if conclusion.batch.status not in ("draft", "failed"):
+            return Response(
+                {"detail": "仅草稿或失败批次的结论可修正"}, status=409
+            )
+        new_after = request.data.get("after_value")
+        if new_after is None:
+            return Response({"detail": "仅支持修正 after_value"}, status=400)
+        try:
+            services.validate_after_value(conclusion.conclusion_type, new_after)
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages}, status=400)
+        conclusion.after_value = new_after
+        conclusion.save(update_fields=["after_value"])
+        return Response(self.get_serializer(conclusion).data)
 
 
 @api_view(["GET"])

@@ -5,7 +5,7 @@ Django 视图与离线测试共用本模块，保证 API 输出与验收测试�
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Mapping
+from typing import Dict, List, Mapping, Optional
 
 from .components import (
     COMPONENTS,
@@ -21,6 +21,7 @@ from .matching import (
     GROWTH_CATEGORIES,
     DEAD,
     INGROWTH,
+    RevisionDirectives,
     TreeRecord,
     match_plot_records,
 )
@@ -70,12 +71,15 @@ def run_analysis(
     dbh_threshold_cm: float = 5.0,
     position_tolerance_m: float = 1.0,
     max_annual_dbh_growth_cm: float = 1.2,
+    directives_by_plot: Optional[Mapping[str, RevisionDirectives]] = None,
 ) -> AnalysisResult:
     """两期调查对比分析主入口。
 
     records_t1 / records_t2: {plot_id: [TreeRecord]}；design: {plot_id: PlotDesign}。
+    directives_by_plot: 核实结论指令（修订批次应用时传入），按样地生效。
     """
     equation_set.assert_unmodified()
+    directives_by_plot = directives_by_plot or {}
 
     outcomes_by_plot: Dict[str, list] = {}
     components_by_plot: Dict[str, PlotComponents] = {}
@@ -88,6 +92,7 @@ def run_analysis(
             position_tolerance_m=position_tolerance_m,
             dbh_threshold_cm=dbh_threshold_cm,
             max_annual_dbh_growth_cm=max_annual_dbh_growth_cm,
+            directives=directives_by_plot.get(plot_id),
         )
         outcomes_by_plot[plot_id] = outcomes
         components_by_plot[plot_id] = compute_plot_components(

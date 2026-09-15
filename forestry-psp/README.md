@@ -111,6 +111,36 @@ psql $PGDATABASE -f backend/forest/sql/immutable_confirmed.sql   # 已确认记�
 - 即使绕过模型层直接改库，出数前 `verify_equation_set_intact()` 也会拦截；
 - 新方程只能以"草稿 + supersedes"形式存在，**不影响已确认调查版**。
 
+### 核实结论修订批次（RevisionBatch）
+
+调查版发布后，现场核实结论以**修订批次**方式进入系统：
+
+- **结论类型**：同株改号（confirm_renumbered）、确认漏测（confirm_missing）、
+  确认死亡（confirm_dead）、保留排除（keep_excluded）、
+  更正观测记录（correct_observation：坐标/单位/死亡状态）。
+- **不可变基线**：原始观测永不改写。修订版 = 基线数据 + 批次结论构成的覆盖层，
+  结论持久化于 `RevisionConclusion`（操作者、时间、前后值、来源版本、请求标识），
+  任意时刻可确定性重建；原调查版、方程集快照、原估计结果始终可查询且不可覆盖。
+- **状态机**：draft → applying → applied / failed（可重试）。
+  应用全程单事务：任一结论不合法（如单位错误）整体回滚，
+  不留半套观测或半套估计；修正结论后重试完成**同一批次**。
+- **幂等**：批次以 `request_id` 为幂等键，重复提交返回同一批次；
+  同一 `request_id` 提交不同内容 → 409；重复应用直接返回原批次。
+- **并发**：同一工单已被其他未失败批次的结论占用时，新结论创建即 409；
+  应用时 `select_for_update` 串行化，工单已被他批核实则本批中止，
+  先前结果保持完整。
+- **链路复用**：修订版重新走现有 匹配 → 分量 → 设计加权 → 来源说明 链路，
+  核实结论以 `RevisionDirectives` 在匹配最前端执行并带 `verification_confirmed` 标记。
+
+| 端点 | 说明 |
+|---|---|
+| `POST /api/revision-batches/` | 创建批次（幂等：request_id） |
+| `GET /api/revision-batches/`、`/{id}/` | 列表 / 详情（含结论审计字段） |
+| `POST /api/revision-batches/{id}/apply/` | 应用（幂等；失败 → 422 + failed） |
+| `POST /api/revision-batches/{id}/retry/` | 失败后重试（仅 failed 状态） |
+| `PATCH /api/revision-conclusions/{id}/` | 修正结论（仅草稿/失败批次） |
+| `GET /api/survey-versions/compare/?base=&revision=` | 两版估计差异（三类响应量 × 四分量）+ 批次审计 |
+
 ## 不确定性假设（随估计结果输出）
 
 - 缺测与待核实个体未做插补，若其与实测个体系统性不同，偏差方向未知；
@@ -145,3 +175,10 @@ psql $PGDATABASE -f backend/forest/sql/immutable_confirmed.sql   # 已确认记�
 | 已确认调查版不可被新方程静默改变 | 模型层守卫 + 哈希快照 + SQL 触发器 | `tests/test_versioning.py`、`test_api.py::TestImmutability`（含绕库篡改拦截） |
 | 每个分量的来源与不确定性假设 | `core/provenance.py` + API `provenance` 字段 | `tests/test_estimation.py::test_provenance_complete` |
 | 虚构林木数据 | `data/fictional_survey.json` | 全部测试共用 |
+| P05 矛盾确认同株改号 → 新草稿版，旧版不变 | `RevisionBatch` + `RevisionDirectives` | `test_revision.py::TestConfirmRenumbered`、`tests/test_revision_directives.py` |
+| 批次幂等（重复提交/重复应用） | `request_id` 唯一键 + 内容指纹 + 应用幂等 | `test_revision.py::TestIdempotency` |
+| 同工单相反结论 → 明确冲突，先前结果完整 | 创建时冲突检查 + 应用时工单状态检查 | `test_revision.py::TestConflictingConclusions` |
+| 单位不合法 → 失败 → 修正 → 重试同一批次 | 失败可重试状态机 + 结论修正接口 | `test_revision.py::TestFailureAndRetry` |
+| 失败不留半套观测/估计 | 应用全程单事务，回滚彻底 | `test_revision.py::test_atomicity_no_partial_state_on_failure` |
+| 重启后基线/修订版/工单/审计链可恢复 | 结论持久化 + 覆盖层确定性重建 | `test_revision.py::TestPersistenceAndAudit` + 重启冒烟验证 |
+| 版本比较（三类响应量差异） | `compare_versions` + ComparePanel | `test_revision.py::TestCompare` |

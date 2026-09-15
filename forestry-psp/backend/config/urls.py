@@ -10,6 +10,10 @@ router.register("survey-versions", views.SurveyVersionViewSet, basename="surveyv
 router.register(
     "verification-tickets", views.VerificationTicketViewSet, basename="verificationticket"
 )
+router.register("revision-batches", views.RevisionBatchViewSet, basename="revisionbatch")
+router.register(
+    "revision-conclusions", views.RevisionConclusionViewSet, basename="revisionconclusion"
+)
 
 urlpatterns = [
     path("api/", include(router.urls)),

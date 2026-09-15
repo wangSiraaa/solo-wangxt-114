@@ -116,3 +116,36 @@ h4 { font-size: 13px; margin: 16px 0 6px; color: var(--accent); }
 details summary { cursor: pointer; color: var(--accent); font-size: 12.5px; }
 
 footer { margin-top: 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+/* 表单与批次面板 */
+.form-grid {
+  display: grid; grid-template-columns: 140px 1fr; gap: 8px 12px;
+  align-items: center; margin: 10px 0; font-size: 13px;
+}
+select, input, textarea {
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 5px 8px; font-size: 12.5px; font-family: inherit;
+  max-width: 100%;
+}
+textarea { width: 100%; font-family: "SF Mono", Consolas, monospace; }
+button {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: 12.5px;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: #2c5f36; border-color: #3f8350; color: #e6f5e8; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.json-block {
+  background: var(--panel-2); border-radius: 6px; padding: 8px;
+  font-size: 11px; max-height: 260px; overflow: auto; white-space: pre-wrap;
+}
+
+.num.pos { color: #9fd8a3; }
+.num.neg { color: #e0a49c; }
+
+.banner.ok-banner {
+  background: rgba(124, 196, 127, 0.1); border: 1px solid #2c5f36;
+  border-radius: 6px; margin: 8px 0; color: #c9f0cd; font-size: 12.5px;
+}

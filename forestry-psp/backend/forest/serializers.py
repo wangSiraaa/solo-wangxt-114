@@ -6,6 +6,8 @@ from .models import (
     AllometricEquation,
     EquationSet,
     Plot,
+    RevisionBatch,
+    RevisionConclusion,
     Stratum,
     SurveyVersion,
     VerificationTicket,
@@ -60,6 +62,9 @@ class EquationSetSerializer(serializers.ModelSerializer):
 
 class SurveyVersionSerializer(serializers.ModelSerializer):
     interval_years = serializers.ReadOnlyField()
+    produced_by_batch_id = serializers.IntegerField(
+        source="produced_by_batch.id", read_only=True, default=None
+    )
 
     class Meta:
         model = SurveyVersion
@@ -67,16 +72,49 @@ class SurveyVersionSerializer(serializers.ModelSerializer):
             "id", "name", "survey_t1", "survey_t2", "equation_set",
             "dbh_threshold_cm", "position_tolerance_m", "interval_years",
             "confirmed", "confirmed_at", "equation_set_hash",
+            "base_version", "produced_by_batch_id",
+        ]
+
+
+class RevisionConclusionSerializer(serializers.ModelSerializer):
+    conclusion_type_label = serializers.CharField(
+        source="get_conclusion_type_display", read_only=True
+    )
+    batch_id = serializers.IntegerField(read_only=True)
+    batch_status = serializers.CharField(source="batch.status", read_only=True)
+
+    class Meta:
+        model = RevisionConclusion
+        fields = [
+            "id", "batch_id", "batch_status", "ticket",
+            "conclusion_type", "conclusion_type_label",
+            "operator", "request_id", "before_value", "after_value",
+            "source_version", "created_at", "applied_at",
+        ]
+
+
+class RevisionBatchSerializer(serializers.ModelSerializer):
+    conclusions = RevisionConclusionSerializer(many=True, read_only=True)
+    status_label = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = RevisionBatch
+        fields = [
+            "id", "request_id", "base_version", "status", "status_label",
+            "created_by", "created_at", "applied_at", "error",
+            "result_version", "conclusions",
         ]
 
 
 class VerificationTicketSerializer(serializers.ModelSerializer):
     plot_id = serializers.CharField(source="plot.plot_id", read_only=True)
     category_label = serializers.CharField(source="get_category_display", read_only=True)
+    conclusions = RevisionConclusionSerializer(many=True, read_only=True)
 
     class Meta:
         model = VerificationTicket
         fields = [
             "id", "plot_id", "category", "category_label",
             "tree_no_t1", "tree_no_t2", "detail", "status", "created_at",
+            "resolved_by_batch", "resolution_note", "conclusions",
         ]

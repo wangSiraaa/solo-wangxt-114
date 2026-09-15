@@ -215,6 +215,9 @@ class SurveyVersion(ConfirmedImmutableModel):
 
     确认时对方程集内容哈希做快照；之后方程集内容若被改动，
     verify_equation_set_intact() 会拒绝继续出数。
+
+    修订版通过 base_version 指向来源（已确认）版，形成可追溯链；
+    修订版本身为草稿，确认后才可作为新批次的基线。
     """
 
     name = models.CharField(max_length=64)
@@ -226,10 +229,15 @@ class SurveyVersion(ConfirmedImmutableModel):
     equation_set_hash = models.CharField(
         max_length=64, blank=True, help_text="确认时方程集内容哈希快照"
     )
+    base_version = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT,
+        related_name="revisions", help_text="修订来源版（基线）；空表示原始调查版",
+    )
 
     tracked_fields = (
         "name", "survey_t1_id", "survey_t2_id", "equation_set_id",
         "dbh_threshold_cm", "position_tolerance_m", "confirmed", "equation_set_hash",
+        "base_version_id",
     )
 
     @property
@@ -311,7 +319,93 @@ class VerificationTicket(models.Model):
     status = models.CharField(
         max_length=8, choices=[("open", "待核实"), ("resolved", "已核实")], default="open"
     )
+    resolved_by_batch = models.ForeignKey(
+        "RevisionBatch", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="resolved_tickets", help_text="核实本工单的修订批次",
+    )
+    resolution_note = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.plot.plot_id} {self.category} {self.tree_no_t1 or ''}/{self.tree_no_t2 or ''}"
+
+
+class RevisionBatch(models.Model):
+    """核实结论修订批次。
+
+    状态机：draft（草稿）→ applying（应用中）→ applied（已应用）
+                                         ↘ failed（失败可重试）↺
+    应用过程单事务执行：任何结论不合法都会整体回滚，
+    不会留下半套观测或半套估计。
+    """
+
+    STATUSES = [
+        ("draft", "草稿"),
+        ("applying", "应用中"),
+        ("applied", "已应用"),
+        ("failed", "失败可重试"),
+    ]
+
+    request_id = models.CharField(
+        max_length=64, unique=True, help_text="客户端请求标识（幂等键）：重复提交返回同一批次"
+    )
+    payload_fingerprint = models.CharField(
+        max_length=64, help_text="请求内容指纹：同一 request_id 提交不同内容时拒绝"
+    )
+    base_version = models.ForeignKey(
+        SurveyVersion, on_delete=models.PROTECT, related_name="revision_batches",
+        help_text="基线调查版（必须为已确认版）",
+    )
+    status = models.CharField(max_length=16, choices=STATUSES, default="draft")
+    created_by = models.CharField(max_length=64, help_text="批次创建人")
+    created_at = models.DateTimeField(auto_now_add=True)
+    applied_at = models.DateTimeField(null=True, blank=True)
+    error = models.TextField(blank=True, help_text="应用失败原因（供修正后重试）")
+    result_version = models.OneToOneField(
+        SurveyVersion, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="produced_by_batch", help_text="应用成功生成的可追溯新草稿版",
+    )
+    result_estimates = models.JSONField(
+        null=True, blank=True, help_text="应用时的估计结果快照（审计用，原估计永不覆盖）"
+    )
+
+    def __str__(self):
+        return f"批次#{self.pk} {self.request_id[:8]} [{self.get_status_display()}]"
+
+
+class RevisionConclusion(models.Model):
+    """一条核实结论（修订批次的组成单元）。
+
+    记录操作者、时间、前后值、来源版本与请求标识，全程可审计。
+    """
+
+    TYPES = [
+        ("confirm_renumbered", "同株改号"),
+        ("confirm_missing", "确认漏测"),
+        ("confirm_dead", "确认死亡"),
+        ("keep_excluded", "保留排除"),
+        ("correct_observation", "更正观测记录"),
+    ]
+
+    batch = models.ForeignKey(
+        RevisionBatch, on_delete=models.CASCADE, related_name="conclusions"
+    )
+    ticket = models.ForeignKey(
+        VerificationTicket, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="conclusions", help_text="关联工单（更正记录类可无工单）",
+    )
+    conclusion_type = models.CharField(max_length=24, choices=TYPES)
+    operator = models.CharField(max_length=64, help_text="结论操作者")
+    request_id = models.CharField(max_length=64, help_text="本条结论的请求标识")
+    before_value = models.JSONField(default=dict, help_text="结论前状态快照")
+    after_value = models.JSONField(default=dict, help_text="结论内容/更正后值")
+    source_version = models.ForeignKey(
+        SurveyVersion, on_delete=models.PROTECT, related_name="+",
+        help_text="结论依据的来源调查版",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    applied_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.get_conclusion_type_display()} 工单#{self.ticket_id or '—'}"
+

@@ -1,20 +1,48 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { fetchEstimates } from "../api";
 
 const fmt = (x, d = 4) =>
   x === null || x === undefined ? "—" : Number(x).toFixed(d);
 
-/** 总体估计：分量表 + 来源与不确定性假设。 */
-export default function EstimatePanel({ estimates }) {
-  const responses = estimates.responses;
-  const components = estimates.components;
-  const [response, setResponse] = useState(responses[0].id);
-  const [component, setComponent] = useState(components[0].id);
+/** 总体估计：按选定调查版获取，展示分量表 + 来源与不确定性假设。 */
+export default function EstimatePanel({ versionId }) {
+  const [estimates, setEstimates] = useState(null);
+  const [error, setError] = useState(null);
+  const [response, setResponse] = useState(null);
+  const [component, setComponent] = useState(null);
 
+  useEffect(() => {
+    if (!versionId) return;
+    setEstimates(null);
+    setError(null);
+    fetchEstimates(versionId)
+      .then((data) => {
+        setEstimates(data);
+        setResponse((r) => r || data.responses[0].id);
+        setComponent((c) => c || data.components[0].id);
+      })
+      .catch((e) => setError(String(e)));
+  }, [versionId]);
+
+  if (error) return <div className="banner error">{error}</div>;
+  if (!estimates || !response) return <div className="banner">加载估计结果…</div>;
+
+  const { responses, components } = estimates;
   const prov = estimates.provenance[component];
+  const revision = estimates.survey_version.revision;
 
   return (
     <div>
-      <h3>总体估计（设计加权，Horvitz–Thompson）</h3>
+      <h3>
+        总体估计（设计加权，Horvitz–Thompson）— 调查版 #{estimates.survey_version.id}
+      </h3>
+      {revision && (
+        <div className="banner warn">
+          本版为修订草稿：源自批次 #{revision.batch_id}（
+          {revision.batch_request_id}），基线版 #{revision.base_version_id}。
+          原已确认版结果不受影响。
+        </div>
+      )}
       <div className="selector-row">
         <label>响应量：</label>
         {responses.map((r) => (
@@ -102,6 +130,7 @@ export default function EstimatePanel({ estimates }) {
           {estimates.rejected_records.map((r, i) => (
             <li key={`r${i}`}>
               拒收：<span className="mono">{r.observation}</span> — {r.reason}
+              {r.rehabilitated && <span className="chip ok">本版已更正启用</span>}
             </li>
           ))}
         </ul>

@@ -16,15 +16,15 @@ const CHIP_CLASS = {
 
 const fmt = (x) => (x === null || x === undefined ? "—" : Number(x).toFixed(1));
 
-/** 单块样地的两期复测匹配明细。 */
-export default function RemeasurementTable({ plotId }) {
+/** 单块样地的两期复测匹配明细（按选定调查版）。 */
+export default function RemeasurementTable({ plotId, versionId }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     setData(null);
-    fetchRemeasurements(plotId).then(setData).catch((e) => setError(String(e)));
-  }, [plotId]);
+    fetchRemeasurements(plotId, versionId).then(setData).catch((e) => setError(String(e)));
+  }, [plotId, versionId]);
 
   if (error) return <div className="banner error">{error}</div>;
   if (!data) return <div className="banner">加载复测明细…</div>;
@@ -56,6 +56,9 @@ export default function RemeasurementTable({ plotId }) {
                   <span className={`chip ${CHIP_CLASS[o.category] || ""}`}>
                     {o.category_label}
                   </span>
+                  {o.flags?.includes("verification_confirmed") && (
+                    <span className="chip ok">核实</span>
+                  )}
                 </td>
                 <td className="mono">{o.t1?.tree_no || "—"}</td>
                 <td className="mono">{o.t2?.tree_no || "—"}</td>
